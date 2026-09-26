@@ -8,17 +8,21 @@ class Settings(BaseSettings):
     linkedin_keywords: str = "Software Engineer Intern"
     linkedin_location: str = "Canada"
 
-    # Filtering
+    # Filtering — software + AI/ML roles. Matched on word boundaries, so
+    # "software" is needed to catch "Software Engineering/Development Intern".
+    # Tech-stack terms catch career pages that name the team rather than the
+    # role ("Firefox Graphics team" + a blurb mentioning CSS).
     target_keywords: list[str] = [
-        "machine learning", "ml engineer", "ai engineer", "llm",
-        "artificial intelligence", "generative ai", "genai",
+        "software", "developer", "programmer", "swe",
+        "ai", "ml", "machine learning", "deep learning", "llm", "nlp",
+        "artificial intelligence", "generative ai", "genai", "computer vision",
+        "data science", "data scientist", "data engineer",
         "full stack", "fullstack", "full-stack",
         "backend", "back-end", "back end",
         "frontend", "front-end", "front end",
-        "software engineer", "software developer", "swe",
-        "mobile developer", "ios developer", "android developer",
-        "data engineer", "cloud engineer", "devops",
-        "saas",
+        "cloud", "devops", "saas", "web", "browser", "browsers", "api", "apis",
+        "ios", "android", "mobile developer", "linux", "macos",
+        "python", "java", "javascript", "typescript", "rust", "react", "django", "css",
     ]
 
     class Config:

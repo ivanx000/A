@@ -29,7 +29,7 @@ def _keyword_match(title: str, description: str) -> bool:
 # ---------------------------------------------------------------------------
 
 _INTERN_RE = re.compile(
-    r"\bintern\b|\binternship\b"
+    r"\bintern\b|\binternships?\b"
     r"|\bco-?op\b"
     r"|\bstudent\b",
     re.IGNORECASE,
@@ -84,12 +84,17 @@ _CANADA_RE = re.compile(
 )
 
 
-def _location_ok(title: str, description: str) -> bool:
+def _location_ok(title: str, description: str, strict: bool = False) -> bool:
     """
     Returns True if:
     - The posting mentions remote work (we don't care where it's based), OR
     - The posting is onsite/hybrid AND is in Canada
     - No location signal at all → assume remote-friendly, allow through
+
+    With strict=True the posting must be remote or in Canada. Used for company
+    career sites, which list jobs worldwide as bare city names ("San Francisco,
+    CA") with no onsite/hybrid wording — unlike LinkedIn, whose search is
+    already scoped to a location.
     """
     text = f"{title} {description}"
 
@@ -99,6 +104,8 @@ def _location_ok(title: str, description: str) -> bool:
 
     if is_remote:
         return True                      # remote anywhere → keep
+    if strict:
+        return in_canada
     if is_onsite and not in_canada:
         return False                     # onsite/hybrid outside Canada → reject
     return True                          # no location signal, or Canada onsite → keep
@@ -108,21 +115,21 @@ def _location_ok(title: str, description: str) -> bool:
 # Public API
 # ---------------------------------------------------------------------------
 
-def is_relevant(title: str, description: str) -> bool:
+def is_relevant(title: str, description: str, strict_location: bool = False) -> bool:
     """Return True only if the posting passes all three checks."""
     return (
         _keyword_match(title, description)
         and _intern_match(title, description)
-        and _location_ok(title, description)
+        and _location_ok(title, description, strict=strict_location)
     )
 
 
-def filter_reason(title: str, description: str) -> str:
+def filter_reason(title: str, description: str, strict_location: bool = False) -> str:
     """Return a human-readable reason for rejection (useful for debugging)."""
     if not _keyword_match(title, description):
         return "keyword_mismatch"
     if not _intern_match(title, description):
         return "not_intern_role"
-    if not _location_ok(title, description):
+    if not _location_ok(title, description, strict=strict_location):
         return "location_rejected"
     return "pass"

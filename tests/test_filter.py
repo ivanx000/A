@@ -142,3 +142,41 @@ def test_filter_reason_reports_location_rejected():
 
 def test_filter_reason_pass():
     assert filter_reason("Full Stack Intern", "remote, full-stack team") == "pass"
+
+
+# ---------------------------------------------------------------------------
+# Software + AI/ML titles (keyword list matches on word boundaries)
+# ---------------------------------------------------------------------------
+
+def test_keyword_match_software_and_ai_ml_title_variants():
+    for title in [
+        "Software Engineering Intern",
+        "Software Development Co-op",
+        "ML Intern",
+        "AI Research Intern",
+        "Data Science Intern",
+    ]:
+        assert _keyword_match(title, ""), title
+
+
+def test_keyword_match_ignores_ai_inside_words():
+    assert not _keyword_match("Retail Intern", "maintain displays")
+
+
+# ---------------------------------------------------------------------------
+# Strict location (company career sites)
+# ---------------------------------------------------------------------------
+
+def test_location_strict_rejects_bare_non_canadian_city():
+    # No onsite/hybrid wording, so the lenient check would let this through
+    assert _location_ok("Software Intern", "San Francisco, CA")
+    assert not _location_ok("Software Intern", "San Francisco, CA", strict=True)
+
+
+def test_location_strict_allows_canada_or_remote():
+    assert _location_ok("Software Intern", "Toronto, ON", strict=True)
+    assert _location_ok("Software Intern", "Remote", strict=True)
+
+
+def test_location_strict_rejects_missing_location():
+    assert not _location_ok("Software Intern", "", strict=True)
