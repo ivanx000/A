@@ -23,7 +23,9 @@ def run_pipeline(source: str, db: Session, **kwargs) -> dict:
 
     rejected = 0
     for posting in unfiltered:
-        if not is_relevant(posting.title or "", posting.description or ""):
+        # Only LinkedIn's search is pre-scoped to a location; career sites list jobs worldwide
+        strict_location = posting.source != "linkedin"
+        if not is_relevant(posting.title or "", posting.description or "", strict_location=strict_location):
             posting.status = "rejected"
             rejected += 1
 

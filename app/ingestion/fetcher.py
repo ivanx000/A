@@ -1,8 +1,10 @@
 """
-Ingestion layer — fetches LinkedIn postings and stores new ones (deduped by URL).
+Ingestion layer — fetches postings and stores new ones (deduped by URL).
 
-LinkedIn's public guest job-search endpoint (no login required) is polled at
-low frequency by --watch-linkedin; HTML is parsed with BeautifulSoup.
+Sources:
+  linkedin — LinkedIn's public guest job-search endpoint (no login required),
+             polled at low frequency; HTML is parsed with BeautifulSoup.
+  company  — a company's own career site (see app/ingestion/company_boards.py).
 """
 from datetime import datetime, timezone
 import httpx
@@ -11,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db.database import Posting
+from app.ingestion.company_boards import fetch_company_board
 
 
 # ---------------------------------------------------------------------------
@@ -101,6 +104,7 @@ def _parse_linkedin_html(html: str) -> list[dict]:
 
 SOURCES: dict[str, callable] = {
     "linkedin": _fetch_linkedin,
+    "company": fetch_company_board,
 }
 
 
