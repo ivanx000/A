@@ -6,7 +6,8 @@ Sources:
              polled at low frequency; HTML is parsed with BeautifulSoup.
   company  — a company's own career site (see app/ingestion/company_boards.py).
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+import re
 import httpx
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
@@ -22,13 +23,11 @@ from app.ingestion.company_boards import fetch_company_board
 
 LINKEDIN_GUEST_SEARCH_URL = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
 
-# Results come back in relevance order (sortBy=DD is ignored by the guest
-# endpoint), 10 per page, so a poll must page through the whole window — the
-# first page alone drops anything LinkedIn ranks lower. The window is a day
-# rather than an hour so a poll missed while the Mac slept (launchd doesn't
-# fire then) and postings LinkedIn indexes hours after their listed time are
-# still caught; re-fetched postings are deduped out by URL.
-LINKEDIN_TIME_POSTED_FILTER = "r86400"
+# Only the last hour is fetched, since only postings that new notify (see
+# NEW_POSTING_MAX_AGE in run_pipeline.py). Results come back in relevance order
+# (sortBy=DD is ignored by the guest endpoint), 10 per page, so a poll pages
+# through the whole window — the first page alone drops anything ranked lower.
+LINKEDIN_TIME_POSTED_FILTER = "r3600"
 LINKEDIN_PAGE_SIZE = 10
 LINKEDIN_MAX_PAGES = 25
 
@@ -67,6 +66,24 @@ def _fetch_linkedin(keywords: str | None = None, location: str | None = None) ->
     return list({p["url"]: p for p in postings}.values())
 
 
+_RELATIVE_AGE_RE = re.compile(r"(\d+)\s+(second|minute|hour|day|week)s?\s+ago", re.IGNORECASE)
+
+
+def _parse_linkedin_posted_at(time_el) -> datetime | None:
+    """The <time> datetime attribute is only a date ("2026-09-28"), so prefer
+    its text ("37 minutes ago"), which is precise enough to tell a posting
+    from the last hour apart from one posted earlier the same day."""
+    m = _RELATIVE_AGE_RE.search(time_el.get_text(" ", strip=True))
+    if m:
+        return datetime.now(timezone.utc) - timedelta(**{f"{m.group(2).lower()}s": int(m.group(1))})
+    if time_el.get("datetime"):
+        try:
+            return datetime.fromisoformat(time_el["datetime"]).replace(tzinfo=timezone.utc)
+        except ValueError:
+            pass
+    return None
+
+
 def _parse_linkedin_html(html: str) -> list[dict]:
     soup = BeautifulSoup(html, "html.parser")
 
@@ -89,12 +106,7 @@ def _parse_linkedin_html(html: str) -> list[dict]:
             location_text = location_el.get_text(strip=True) if location_el else ""
             url = f"https://www.linkedin.com/jobs/view/{job_id}/"
 
-            posted_at = None
-            if time_el and time_el.get("datetime"):
-                try:
-                    posted_at = datetime.fromisoformat(time_el["datetime"]).replace(tzinfo=timezone.utc)
-                except ValueError:
-                    pass
+            posted_at = _parse_linkedin_posted_at(time_el) if time_el else None
 
             postings.append({
                 "url": url,

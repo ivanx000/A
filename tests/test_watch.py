@@ -85,10 +85,24 @@ def test_old_postings_surfacing_later_do_not_notify(watch):
 
     now = datetime.now(timezone.utc)
     board.append(_job(2, posted_at=now - timedelta(days=30), title="Old Intern Software"))
-    board.append(_job(3, posted_at=now - timedelta(hours=2), title="Fresh Intern Software"))
+    board.append(_job(3, posted_at=now - timedelta(hours=2), title="Earlier Today Intern Software"))
+    board.append(_job(4, posted_at=now - timedelta(minutes=20), title="Fresh Intern Software"))
     run_once()
 
     assert notified == ["Fresh Intern Software"]
+
+
+def test_date_only_sources_allow_postings_dated_today(watch):
+    run_once, board, notified = watch
+    board.append(_job(1))
+    run_once()
+
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    board.append({**_job(2, posted_at=today, title="Today Intern Software"), "source": "workday"})
+    board.append({**_job(3, posted_at=today - timedelta(days=3), title="Old Intern Software"), "source": "workday"})
+    run_once()
+
+    assert notified == ["Today Intern Software"]
 
 
 @pytest.mark.parametrize("text, days_ago", [

@@ -24,17 +24,25 @@ from app.notify.notifier import notify
 console = Console()
 
 # Postings whose site-reported posted_at is older than this are recorded without
-# notifying. A company's search results aren't strictly newest-first, so an old
-# posting can surface for the first time long after it went up; anything
-# genuinely new is picked up within one poll interval.
-NEW_POSTING_MAX_AGE = timedelta(days=3)
+# notifying — only jobs posted within the last hour alert. Search results aren't
+# strictly newest-first, so an old posting can surface for the first time long
+# after it went up; anything genuinely new is picked up within one poll interval.
+NEW_POSTING_MAX_AGE = timedelta(hours=1)
+
+# These sites only report the day a job was posted (stored as midnight UTC), so
+# the best available check is "dated today", with a day of slack for the gap
+# between the site's timezone and UTC. Freshness there comes from the posting
+# first appearing on a poll (the first poll of a company is silent).
+DATE_ONLY_SOURCES = ("workday", "successfactors")
+DATE_ONLY_MAX_AGE = timedelta(days=2)
 
 
 def _is_stale(posting: Posting, now: datetime) -> bool:
     if posting.posted_at is None:
         return False
     posted_at = posting.posted_at if posting.posted_at.tzinfo else posting.posted_at.replace(tzinfo=timezone.utc)
-    return now - posted_at > NEW_POSTING_MAX_AGE
+    max_age = DATE_ONLY_MAX_AGE if posting.source in DATE_ONLY_SOURCES else NEW_POSTING_MAX_AGE
+    return now - posted_at > max_age
 
 
 def cmd_watch(linkedin: bool, companies: bool, keywords: str, location: str, interval: int, once: bool):
@@ -100,7 +108,7 @@ def cmd_watch(linkedin: bool, companies: bool, keywords: str, location: str, int
             for p in stale:
                 p.notified_at = now  # suppressed, not notified — see NEW_POSTING_MAX_AGE
             if stale:
-                console.print(f"[dim]Skipped {len(stale)} matching postings older than {NEW_POSTING_MAX_AGE.days} days.[/]")
+                console.print(f"[dim]Skipped {len(stale)} matching postings posted over an hour ago.[/]")
             to_notify = [p for p in to_notify if p not in stale]
 
             for p in to_notify:

@@ -74,6 +74,19 @@ def test_fetch_linkedin_pages_until_short_page(monkeypatch):
     assert len(postings) == 12
 
 
+def test_parse_linkedin_posted_at_uses_relative_text():
+    from datetime import datetime, timedelta, timezone
+
+    html = LINKEDIN_CARD_HTML.replace(
+        '<time datetime="2026-08-01T12:00:00"></time>',
+        '<time datetime="2026-08-01">\n  37 minutes ago\n  </time>',
+    )
+    posted_at = fetcher._parse_linkedin_html(html)[0]["posted_at"]
+
+    expected = datetime.now(timezone.utc) - timedelta(minutes=37)
+    assert abs(posted_at - expected) < timedelta(seconds=5)
+
+
 def test_parse_linkedin_html_skips_cards_missing_job_id_or_title():
     html = """
     <div class="base-card">
