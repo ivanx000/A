@@ -40,8 +40,10 @@ app/pipeline.py  ←── orchestrates ingest → filter
       │     Fetches LinkedIn's public guest job-search endpoint (no login),
       │     HTML parsed with BeautifulSoup. Dedupes by URL. Stores posted_at
       │     from the posting's <time> element.
-      │     Polled with a 1h f_TPR window since the watch runs frequently
-      │     — a wider window would just re-fetch postings already deduped out.
+      │     Polled with a 24h f_TPR window, paging through every result
+      │     (the guest endpoint returns 10 per page in relevance order and
+      │     ignores sortBy), so missed polls during sleep and late-indexed
+      │     postings are still caught; re-fetches are deduped out by URL.
       │
       ├── app/ingestion/company_boards.py   fetch_company_board(name, url)
       │     Detects the ATS from the careers URL (Greenhouse, Lever incl. EU,
@@ -56,8 +58,12 @@ app/pipeline.py  ←── orchestrates ingest → filter
       │
       └── app/filtering/filter.py    is_relevant(title, description)
             Three required checks (all must pass):
-            1. _keyword_match   — target role keywords (ML/AI, full-stack, SaaS, etc.)
-            2. _intern_match    — must be intern/co-op/student/new-grad/junior/entry-level
+            1. _keyword_match   — target role keywords (ML/AI, full-stack, SaaS, etc.),
+                                  or a broad tech term (engineer, IT, data, technology…)
+                                  in the title that isn't another engineering discipline
+            2. _intern_match    — title must say intern/co-op/student/PEY (or French
+                                  equivalents), or name a term + length ("Winter
+                                  2027 … (8 months)"); senior titles are rejected
             3. _location_ok     — remote OK anywhere; onsite/hybrid must be in Canada.
                                   Non-LinkedIn sources use strict=True: must be
                                   remote or Canada (career sites list jobs
