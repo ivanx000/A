@@ -22,37 +22,49 @@ from app.ingestion.company_boards import fetch_company_board
 
 LINKEDIN_GUEST_SEARCH_URL = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
 
-# Kept short (last hour) since this source is meant to be polled repeatedly by
-# --watch-linkedin — a wide window would just re-fetch postings already
-# deduped out on every poll.
-LINKEDIN_TIME_POSTED_FILTER = "r3600"
+# Results come back in relevance order (sortBy=DD is ignored by the guest
+# endpoint), 10 per page, so a poll must page through the whole window — the
+# first page alone drops anything LinkedIn ranks lower. The window is a day
+# rather than an hour so a poll missed while the Mac slept (launchd doesn't
+# fire then) and postings LinkedIn indexes hours after their listed time are
+# still caught; re-fetched postings are deduped out by URL.
+LINKEDIN_TIME_POSTED_FILTER = "r86400"
+LINKEDIN_PAGE_SIZE = 10
+LINKEDIN_MAX_PAGES = 25
 
 
 def _fetch_linkedin(keywords: str | None = None, location: str | None = None) -> list[dict]:
     keywords = keywords if keywords is not None else settings.linkedin_keywords
     location = location if location is not None else settings.linkedin_location
 
-    params = {"keywords": keywords, "f_TPR": LINKEDIN_TIME_POSTED_FILTER, "start": 0}
+    params = {"keywords": keywords, "f_TPR": LINKEDIN_TIME_POSTED_FILTER}
     if location:
         params["location"] = location
 
-    resp = httpx.get(
-        LINKEDIN_GUEST_SEARCH_URL,
-        params=params,
-        headers={
-            "User-Agent": (
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
-            )
-        },
-        timeout=15,
-        follow_redirects=True,
-    )
-    resp.raise_for_status()
-    if not resp.text.strip():
-        return []
+    postings = []
+    for page in range(LINKEDIN_MAX_PAGES):
+        resp = httpx.get(
+            LINKEDIN_GUEST_SEARCH_URL,
+            params={**params, "start": page * LINKEDIN_PAGE_SIZE},
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+                )
+            },
+            timeout=15,
+            follow_redirects=True,
+        )
+        resp.raise_for_status()
+        if not resp.text.strip():
+            break
+        batch = _parse_linkedin_html(resp.text)
+        postings.extend(batch)
+        if len(batch) < LINKEDIN_PAGE_SIZE:
+            break
 
-    return _parse_linkedin_html(resp.text)
+    # Pages can overlap as the result set shifts between requests
+    return list({p["url"]: p for p in postings}.values())
 
 
 def _parse_linkedin_html(html: str) -> list[dict]:

@@ -52,6 +52,28 @@ def test_fetch_linkedin_returns_empty_on_blank_response(monkeypatch):
     assert fetcher._fetch_linkedin() == []
 
 
+def test_fetch_linkedin_pages_until_short_page(monkeypatch):
+    def card(job_id):
+        return LINKEDIN_CARD_HTML.replace("123456", str(job_id))
+
+    pages = {
+        0: "".join(card(i) for i in range(10)),
+        10: "".join(card(i) for i in range(9, 12)),  # overlaps previous page by one
+    }
+    starts = []
+
+    def fake_get(url, params=None, headers=None, timeout=None, follow_redirects=None):
+        starts.append(params["start"])
+        return _FakeResponse(pages[params["start"]])
+
+    monkeypatch.setattr(fetcher.httpx, "get", fake_get)
+
+    postings = fetcher._fetch_linkedin()
+
+    assert starts == [0, 10]
+    assert len(postings) == 12
+
+
 def test_parse_linkedin_html_skips_cards_missing_job_id_or_title():
     html = """
     <div class="base-card">
