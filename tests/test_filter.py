@@ -32,6 +32,22 @@ def test_keyword_match_no_target_keywords():
     assert not _keyword_match("Barista Intern", "serving coffee")
 
 
+def test_keyword_match_broad_tech_titles():
+    assert _keyword_match("Engineer Intern", "")
+    assert _keyword_match("Student, Emerging Technologies (Winter 2027)", "")
+    assert _keyword_match("PepsiCo Canada: Commercial IT Winter 2027 Co-op", "")
+
+
+def test_keyword_match_broad_terms_title_only():
+    assert not _keyword_match("Barista Intern", "Our data shows customers love it")
+
+
+def test_keyword_match_broad_terms_skip_other_disciplines():
+    assert not _keyword_match("Mechanical Engineering Co-op", "")
+    # a specific target keyword still wins
+    assert _keyword_match("AI & ML Intern - Electrical Engineer", "")
+
+
 # ---------------------------------------------------------------------------
 # _intern_match
 # ---------------------------------------------------------------------------
@@ -60,6 +76,21 @@ def test_intern_match_rejects_senior_even_if_title_mentions_intern():
 def test_intern_match_rejects_new_grad_and_junior_titles():
     assert not _intern_match("New Grad Software Engineer", "")
     assert not _intern_match("Junior Developer", "")
+
+
+def test_intern_match_allows_junior_co_op():
+    assert _intern_match("Junior Full Stack Developer Coop", "")
+
+
+def test_intern_match_pey_and_french_titles():
+    assert _intern_match("2027 Investor Services, PEY Software Engineer (12 months)", "")
+    assert _intern_match("Stagiaire ou étudiant(e) en alternance, Données", "")
+
+
+def test_intern_match_term_with_length():
+    assert _intern_match("2027 Wealth Management, Winter Technology/Developer (4-16 months)", "")
+    assert _intern_match("Data Scientist, GTB, Winter 2027 Analyst (8 Months)", "")
+    assert not _intern_match("Software Developer, Summer start", "")
 
 
 def test_intern_match_only_checks_title_not_description():

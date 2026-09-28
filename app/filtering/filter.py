@@ -16,11 +16,17 @@ from app.config import settings
 # 1. Keyword filter
 # ---------------------------------------------------------------------------
 
+def _has_any(text: str, keywords: list[str]) -> bool:
+    return any(re.search(rf"\b{re.escape(kw)}\b", text) for kw in keywords)
+
+
 def _keyword_match(title: str, description: str) -> bool:
-    text = f"{title} {description}".lower()
-    return any(
-        re.search(rf"\b{re.escape(kw)}\b", text)
-        for kw in settings.target_keywords
+    if _has_any(f"{title} {description}".lower(), settings.target_keywords):
+        return True
+    title = title.lower()
+    return (
+        _has_any(title, settings.broad_title_keywords)
+        and not _has_any(title, settings.non_software_disciplines)
     )
 
 
@@ -31,16 +37,22 @@ def _keyword_match(title: str, description: str) -> bool:
 _INTERN_RE = re.compile(
     r"\bintern\b|\binternships?\b"
     r"|\bco-?op\b"
-    r"|\bstudent\b",
+    r"|\bstudents?\b"
+    r"|\bpey\b|\bprofessional\s+experience\s+year\b|\bwork\s+term\b|\bresidency\b"
+    r"|\bstagiaire\b|\bétudiant|\balternance\b",
     re.IGNORECASE,
 )
+
+# Canadian co-op postings often name only the term and its length, e.g.
+# "2027 Wealth Management, Winter Technology/Developer (4-16 months)"
+_TERM_RE = re.compile(r"\b(?:winter|summer|fall|autumn|spring)\b", re.IGNORECASE)
+_TERM_LENGTH_RE = re.compile(r"\b\d{1,2}(?:\s*(?:-|to|or)\s*\d{1,2})?\s*months?\b", re.IGNORECASE)
 
 # Seniority signals that disqualify a posting outright, even if it also
 # mentions interns/students elsewhere (e.g. "senior engineers mentor our interns")
 _SENIOR_RE = re.compile(
     r"\bsenior\b|\bsr\.?\b|\bstaff\b|\bprincipal\b|\blead\b|\barchitect\b"
-    r"|\bdirector\b|\bhead\s+of\b|\bvp\b|\bmanager\b"
-    r"|\bnew\s+grad\b|\bnew\s+graduate\b|\bentry[\s-]level\b|\bjunior\b",
+    r"|\bdirector\b|\bhead\s+of\b|\bvp\b|\bmanager\b",
     re.IGNORECASE,
 )
 
@@ -52,7 +64,9 @@ def _intern_match(title: str, description: str) -> bool:
     """
     if _SENIOR_RE.search(title):
         return False
-    return bool(_INTERN_RE.search(title))
+    if _INTERN_RE.search(title):
+        return True
+    return bool(_TERM_RE.search(title) and _TERM_LENGTH_RE.search(title))
 
 
 # ---------------------------------------------------------------------------
@@ -77,6 +91,10 @@ _CANADA_RE = re.compile(
     r"|\btoronto\b|\bvancouver\b|\bmontreal\b|\bcalgary\b|\bottawa\b"
     r"|\bwaterloo\b|\bedmonton\b|\bquebec\b|\bhalifax\b|\bvictoria\b"
     r"|\bwinnipeg\b|\bkitchener\b|\bhamilton\b|\blondon,?\s*on\b"
+    r"|\bgta\b|\bgreater\s+toronto\b|\bmississauga\b|\bbrampton\b|\bmarkham\b"
+    r"|\bvaughan\b|\boakville\b|\bburlington\b|\brichmond\s+hill\b|\bscarborough\b"
+    r"|\betobicoke\b|\bnorth\s+york\b|\boshawa\b|\bpickering\b|\bajax\b|\bwhitby\b"
+    r"|\bmilton\b|\bnewmarket\b|\baurora\b"
     r"|\bontario\b|\bbritish\s+columbia\b|\balberta\b|\bbc\b"
     r"|\bon\b(?=\s*\||\s*,|\s*$)"   # "ON" as province abbreviation
     r"|\bqc\b|\bab\b|\bns\b|\bnb\b|\bmb\b|\bsk\b",

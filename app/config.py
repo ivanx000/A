@@ -39,6 +39,27 @@ class Settings(BaseSettings):
         "cloud", "devops", "saas", "web", "browser", "browsers", "api", "apis",
         "ios", "android", "mobile developer", "linux", "macos",
         "python", "java", "javascript", "typescript", "rust", "react", "django", "css",
+        "site reliability", "sre", "firmware", "embedded", "automation", "qa",
+        "cyber", "cybersecurity", "security", "applied scientist", "research scientist",
+        "quantitative", "quant", "analytics", "ux", "ui",
+        "développement", "développeur", "logiciel", "informatique", "données",
+    ]
+
+    # Broad tech terms — checked against the title only (descriptions use them
+    # incidentally) so titles like "Engineer Intern", "IT Co-op", "Student,
+    # Emerging Technologies" or "Data Engineering Intern" aren't rejected.
+    # Skipped when the title names a non-software engineering discipline.
+    broad_title_keywords: list[str] = [
+        "engineer", "engineering", "development", "technology", "technologies",
+        "tech", "technical", "it", "data", "digital", "systems", "platform",
+        "infrastructure", "research", "scientist", "ingénierie", "technologique",
+    ]
+    non_software_disciplines: list[str] = [
+        "mechanical", "civil", "chemical", "structural", "electrical", "power system",
+        "building", "process", "manufacturing", "mining", "geotechnical",
+        "environmental", "industrial", "nuclear", "propulsion", "materials",
+        "aerospace", "biomedical", "construction", "facilities", "hvac",
+        "combustion", "mechatronic", "mechatronics", "thermal",
     ]
 
     class Config:
