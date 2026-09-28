@@ -56,7 +56,7 @@ Supported URLs:
 
 Fully custom sites that don't link to any of these (Google, Amazon, Microsoft, Shopify) aren't supported.
 
-Only postings that appear after you start watching a company notify you: the first poll of a newly-added company silently records everything already on its site, and postings the site reports as more than 3 days old are skipped (search results aren't strictly newest-first, so an old posting can surface late).
+Only postings that appear after you start watching a company notify you: the first poll of a newly-added company silently records everything already on its site, and postings the site reports as posted more than an hour ago are skipped (Workday/SuccessFactors only report a date, so there it's "dated today") (search results aren't strictly newest-first, so an old posting can surface late).
 
 - Runs as a foreground loop by default — for it to fire while you're not watching a terminal, either leave it running in a background terminal tab, or run `--watch-linkedin --once` on a schedule via `cron`/`launchd`.
 - LinkedIn markup and rate limiting can change without notice — this hits a public, unauthenticated endpoint, not an official API, so treat it as best-effort and keep polling infrequent (default: every 5 minutes).

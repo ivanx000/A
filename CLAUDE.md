@@ -32,7 +32,9 @@ run_pipeline.py  ←── CLI entrypoint; cmd_watch() loops (or, with --once, r
       │              Only genuinely new postings notify: the first successful
       │              poll of a company marks everything already on its site as
       │              notified without alerting, and postings whose posted_at is
-      │              older than NEW_POSTING_MAX_AGE (3 days) are marked silently.
+      │              older than NEW_POSTING_MAX_AGE (1 hour) are marked silently
+      │              (Workday/SuccessFactors only give a date, so for
+      │              them "dated today", allowing for timezone slack).
       ▼
 app/pipeline.py  ←── orchestrates ingest → filter
       │
@@ -40,10 +42,10 @@ app/pipeline.py  ←── orchestrates ingest → filter
       │     Fetches LinkedIn's public guest job-search endpoint (no login),
       │     HTML parsed with BeautifulSoup. Dedupes by URL. Stores posted_at
       │     from the posting's <time> element.
-      │     Polled with a 24h f_TPR window, paging through every result
+      │     Polled with a 1h f_TPR window, paging through every result
       │     (the guest endpoint returns 10 per page in relevance order and
-      │     ignores sortBy), so missed polls during sleep and late-indexed
-      │     postings are still caught; re-fetches are deduped out by URL.
+      │     ignores sortBy). posted_at comes from the card's "N minutes ago"
+      │     text — the <time> datetime attribute is date-only.
       │
       ├── app/ingestion/company_boards.py   fetch_company_board(name, url)
       │     Detects the ATS from the careers URL (Greenhouse, Lever incl. EU,
@@ -88,7 +90,7 @@ Single table `postings` in `pipeline.db` (SQLite):
 | `posted_at` | When the job was originally posted (nullable) |
 | `fetched_at` | When we stored it |
 | `status` | `new` (passed the filter) or `rejected` (set by `is_relevant`) |
-| `notified_at` | Set once a notification has fired for this posting, or once it was suppressed as pre-existing (first poll of a company, or older than 3 days) — NULL until then |
+| `notified_at` | Set once a notification has fired for this posting, or once it was suppressed as pre-existing (first poll of a company, or posted over an hour ago) — NULL until then |
 
 SQLAlchemy does not auto-migrate. Add columns manually with `ALTER TABLE` when the schema changes.
 
